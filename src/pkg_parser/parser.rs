@@ -7,7 +7,7 @@ pub struct Pkg {
     pub files: HashMap<String, Vec<u8>>,
 }
 
-struct Header {
+pub struct Header {
     version: String,
     file_count: u32,
 }
@@ -97,5 +97,9 @@ impl Pkg {
         }
 
         entries
+    }
+
+    fn read_file(&mut self) {
+        let entries = &self.entries;
     }
 }
