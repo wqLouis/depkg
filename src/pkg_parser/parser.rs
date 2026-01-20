@@ -1,9 +1,10 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{collections::HashMap, fs::File, io::Read, path::Path};
 
 pub struct Pkg {
     file: File,
     pub header: Header,
     pub entries: Vec<Entry>,
+    pub files: HashMap<String, Vec<u8>>,
 }
 
 struct Header {
@@ -11,10 +12,10 @@ struct Header {
     file_count: u32,
 }
 
-struct Entry {
-    path: String,
-    offset: u32,
-    size: u32,
+pub struct Entry {
+    pub path: String,
+    pub offset: u32,
+    pub size: u32,
 }
 
 impl Pkg {
@@ -25,12 +26,14 @@ impl Pkg {
             version: header_meta.0,
             file_count: header_meta.1,
         };
-        let entries = Vec::<Entry>::new();
+        let entries = Self::read_entry(&mut file, header.file_count);
+        let files = HashMap::<String, Vec<u8>>::new();
 
         Pkg {
             file,
             header,
             entries,
+            files,
         }
     }
 
@@ -65,7 +68,7 @@ impl Pkg {
         (version, count)
     }
 
-    fn read_entry(&mut self, entry_count: u64) {
+    fn read_entry(file: &mut File, entry_count: u32) -> Vec<Entry> {
         // Read the file entry of pkg
 
         const PATH_LEN: usize = 4;
@@ -73,11 +76,7 @@ impl Pkg {
         const DATA_SIZE: usize = 4;
 
         let mut path_len = [0u8; PATH_LEN];
-        let mut data_offset = Vec::<u32>::new();
-        let mut data_size = Vec::<u32>::new();
-        let mut path = Vec::<String>::new();
-
-        let mut file = &self.file;
+        let mut entries = Vec::<Entry>::new();
 
         for _ in 0..entry_count {
             file.read_exact(&mut path_len).unwrap();
@@ -90,9 +89,13 @@ impl Pkg {
             file.read_exact(&mut data_offset_buffer).unwrap();
             file.read_exact(&mut data_size_buffer).unwrap();
 
-            path.push(String::from_utf8(path_buffer).unwrap());
-            data_offset.push(u32::from_le_bytes(data_offset_buffer));
-            data_size.push(u32::from_le_bytes(data_size_buffer));
+            entries.push(Entry {
+                path: String::from_utf8(path_buffer).unwrap(),
+                offset: u32::from_le_bytes(data_offset_buffer),
+                size: u32::from_le_bytes(data_size_buffer),
+            });
         }
+
+        entries
     }
 }
