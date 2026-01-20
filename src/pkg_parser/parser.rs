@@ -1,7 +1,12 @@
-use std::{collections::HashMap, fs::File, io::Read, path::Path};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufReader, Read, Seek, SeekFrom},
+    path::Path,
+};
 
 pub struct Pkg {
-    file: File,
+    file: BufReader<File>,
     pub header: Header,
     pub entries: Vec<Entry>,
     pub files: HashMap<String, Vec<u8>>,
@@ -20,14 +25,14 @@ pub struct Entry {
 
 impl Pkg {
     pub fn new(pkg_path: &Path) -> Pkg {
-        let mut file = File::open(pkg_path).unwrap();
+        let mut file = BufReader::new(File::open(pkg_path).unwrap());
         let header_meta = Self::read_header(&mut file);
         let header = Header {
             version: header_meta.0,
             file_count: header_meta.1,
         };
         let entries = Self::read_entry(&mut file, header.file_count);
-        let files = HashMap::<String, Vec<u8>>::new();
+        let files = Self::read_files(&mut file, &entries);
 
         Pkg {
             file,
@@ -37,25 +42,25 @@ impl Pkg {
         }
     }
 
-    fn read_header(file: &mut File) -> (String, u32) {
+    fn read_header(file: &mut BufReader<File>) -> (String, u32) {
         // Read the header of the pkg
 
         const HEADER_LEN: usize = 4;
         const FILE_COUNT_LEN: usize = 4;
 
-        fn header_len(file: &mut File) -> u32 {
+        fn header_len(file: &mut BufReader<File>) -> u32 {
             let mut header_len = [0u8; HEADER_LEN];
             file.read_exact(&mut header_len).unwrap();
             u32::from_le_bytes(header_len)
         }
 
-        fn header_version(file: &mut File, len: usize) -> String {
+        fn header_version(file: &mut BufReader<File>, len: usize) -> String {
             let mut header_v = vec![0u8; len];
             file.read_exact(&mut header_v).unwrap();
             String::from_utf8(header_v).unwrap()
         }
 
-        fn file_count(file: &mut File) -> u32 {
+        fn file_count(file: &mut BufReader<File>) -> u32 {
             let mut file_count = [0u8; FILE_COUNT_LEN];
             file.read_exact(&mut file_count).unwrap();
             u32::from_le_bytes(file_count)
@@ -68,7 +73,7 @@ impl Pkg {
         (version, count)
     }
 
-    fn read_entry(file: &mut File, entry_count: u32) -> Vec<Entry> {
+    fn read_entry(file: &mut BufReader<File>, entry_count: u32) -> Vec<Entry> {
         // Read the file entry of pkg
 
         const PATH_LEN: usize = 4;
@@ -99,7 +104,18 @@ impl Pkg {
         entries
     }
 
-    fn read_file(&mut self) {
-        let entries = &self.entries;
+    fn read_files(file: &mut BufReader<File>, entries: &Vec<Entry>) -> HashMap<String, Vec<u8>> {
+        let mut map = HashMap::<String, Vec<u8>>::new();
+        let pos: u64 = file.stream_position().unwrap();
+
+        for entry in entries {
+            let mut buf = vec![0u8; entry.size as usize];
+            file.seek(SeekFrom::Start(entry.offset as u64 + pos))
+                .unwrap();
+            file.read_exact(&mut buf).unwrap();
+            map.insert(entry.path.clone(), buf);
+        }
+
+        map
     }
 }
