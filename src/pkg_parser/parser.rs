@@ -5,6 +5,8 @@ use std::{
     path::Path,
 };
 
+use crate::pkg_parser::tex_parser;
+
 pub struct Pkg {
     file: BufReader<File>,
     pub header: Header,
@@ -26,12 +28,8 @@ pub struct Entry {
 impl Pkg {
     pub fn new(pkg_path: &Path) -> Pkg {
         let mut file = BufReader::new(File::open(pkg_path).unwrap());
-        let header_meta = Self::read_header(&mut file);
-        let header = Header {
-            version: header_meta.0,
-            file_count: header_meta.1,
-        };
-        let entries = Self::read_entry(&mut file, header.file_count);
+        let header = Self::read_header(&mut file);
+        let entries = Self::read_entries(&mut file, header.file_count);
         let files = Self::read_files(&mut file, &entries);
 
         Pkg {
@@ -42,7 +40,7 @@ impl Pkg {
         }
     }
 
-    fn read_header(file: &mut BufReader<File>) -> (String, u32) {
+    fn read_header(file: &mut BufReader<File>) -> Header {
         // Read the header of the pkg
 
         const HEADER_LEN: usize = 4;
@@ -67,13 +65,14 @@ impl Pkg {
         }
 
         let len = header_len(file);
-        let version = header_version(file, len as usize);
-        let count = file_count(file);
 
-        (version, count)
+        Header {
+            version: header_version(file, len as usize),
+            file_count: file_count(file),
+        }
     }
 
-    fn read_entry(file: &mut BufReader<File>, entry_count: u32) -> Vec<Entry> {
+    fn read_entries(file: &mut BufReader<File>, entry_count: u32) -> Vec<Entry> {
         // Read the file entry of pkg
 
         const PATH_LEN: usize = 4;
@@ -121,9 +120,15 @@ impl Pkg {
 
     pub fn save_pkg(&mut self, target: &Path) {
         for (path, bytes) in self.files.iter() {
-            let path = target.join(path);
-            create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(path, bytes).unwrap();
+            let mut path = target.join(path);
+            // create_dir_all(path.parent().unwrap()).unwrap();
+            if path.extension().unwrap_or_default() == "tex" {
+                let parsed = tex_parser::parse(bytes);
+                path.set_extension(parsed.0);
+                // fs::write(path, parsed.1).unwrap();
+            } else {
+                // fs::write(path, bytes).unwrap();
+            }
         }
     }
 }
