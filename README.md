@@ -1,10 +1,24 @@
 # Wallpaper Engine Pkg Parser
 
-A Rust library and tool for parsing Wallpaper Engine `.pkg` files and `.tex` textures.
+A high-performance Rust library and command-line tool designed for parsing Wallpaper Engine `.pkg` archives and `.tex` texture files.
 
-## Features
-*   Extracts files from `.pkg` archives while maintaining directory structure.
-*   Converts `.tex` texture files to `.png` (**WIP** - support is currently experimental).
+## ✨ Features
 
-## Disclaimer
-**Please respect the copyright of wallpaper creators.** This tool is intended for bring wallpaper engine to Linux and educational purposes only. Do not use this tool to pirate or distribute paid content.
+*    **Robust Extraction**: Seamlessly extracts files from `.pkg` archives while perfectly preserving the original directory structure.
+*    **Texture Conversion**: Converts proprietary `.tex` texture files to standard `.png` format for easier compatibility.
+    *   *Note: This feature is currently a **Work In Progress (WIP)** and supports experimental functionality.*
+
+## Acknowledgments & Inspiration
+
+This project was inspired by the incredible work done by the open-source community. Special thanks to:
+
+*   **[notscuffed/repkg](https://github.com/notscuffed/repkg)**
+*   **[AzPepoze/linux-wallpaperengine](https://github.com/AzPepoze/linux-wallpaperengine)** - I read the part for unpacking tex files, real good stuff
+
+---
+
+## ⚠️ Disclaimer
+
+**Please respect the copyright of wallpaper creators.**
+
+This tool is intended primarily to assist in bringing Wallpaper Engine to Linux and for educational purposes only. We strictly condemn the use of this tool for piracy or the unauthorized distribution of paid content.
