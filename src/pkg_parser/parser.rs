@@ -121,13 +121,13 @@ impl Pkg {
     pub fn save_pkg(&mut self, target: &Path) {
         for (path, bytes) in self.files.iter() {
             let mut path = target.join(path);
-            // create_dir_all(path.parent().unwrap()).unwrap();
+            create_dir_all(path.parent().unwrap()).unwrap();
             if path.extension().unwrap_or_default() == "tex" {
                 let parsed = tex_parser::parse(bytes);
-                path.set_extension(parsed.0);
-                // fs::write(path, parsed.1).unwrap();
+                path.set_extension("png"); // TODO: Support other formats
+                fs::write(path, parsed).unwrap();
             } else {
-                // fs::write(path, bytes).unwrap();
+                fs::write(path, bytes).unwrap();
             }
         }
     }
