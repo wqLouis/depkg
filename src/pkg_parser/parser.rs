@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{self, File, create_dir_all},
     io::{BufReader, Read, Seek, SeekFrom},
     path::Path,
 };
@@ -117,5 +117,13 @@ impl Pkg {
         }
 
         map
+    }
+
+    pub fn save_pkg(&mut self, target: &Path) {
+        for (path, bytes) in self.files.iter() {
+            let path = target.join(path);
+            create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
     }
 }
