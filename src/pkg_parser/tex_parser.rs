@@ -2,7 +2,7 @@ use std::io::{BufReader, Cursor, Read, Seek};
 
 struct Signature {
     // https://en.wikipedia.org/wiki/List_of_file_signatures
-    table: Vec<(Vec<u32>, &'static str)>, // (pattern, extension)
+    table: Vec<(Vec<u8>, &'static str)>, // (pattern, extension)
 }
 
 impl Signature {
@@ -10,22 +10,29 @@ impl Signature {
         let mut sig = Signature { table: Vec::new() };
         sig.table.push((vec![0xff, 0xd8, 0xff], "jpg"));
         sig.table
-            .push((vec![0x89, 0x48, 0x44, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png"));
+            .push((vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png"));
 
         sig
     }
 
-    pub fn match_extension(bytes: &Vec<u8>) {}
-
-    fn vec_u8_to_u32(bytes: &[u8]) -> Vec<u32> {
-        bytes
-            .chunks_exact(4)
-            .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
-            .collect()
+    pub fn match_extension(&self, bytes: &[u8]) -> &str {
+        for (match_bytes, extension) in &self.table {
+            let mut valid = true;
+            for (byte, match_byte) in bytes.iter().zip(match_bytes) {
+                if byte != match_byte {
+                    valid = false;
+                    break;
+                }
+            }
+            if valid {
+                return extension;
+            }
+        }
+        &"" // no match
     }
 }
 
-pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> Vec<Vec<u8>> {
+pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> (Vec<Vec<u8>>, String) {
     const MAGIC: usize = 8;
     const SEP: i64 = 1;
     const TEX_SIZE: usize = 4;
@@ -51,10 +58,14 @@ pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> Vec<Vec<u8>> {
 
     buf.read_exact(&mut payload).unwrap();
 
+    let sig = Signature::new();
+    let extension = sig.match_extension(&payload[0..8]).to_owned(); // probably wont break idk
+    println!("{}", extension);
+
     payloads.push(payload.clone());
 
     if !parse_mipmap {
-        return payloads;
+        return (payloads, extension);
     }
 
     let bytes_len = bytes.len();
@@ -76,5 +87,5 @@ pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> Vec<Vec<u8>> {
         payloads.push(payload.clone());
     }
 
-    payloads
+    (payloads, extension)
 }
