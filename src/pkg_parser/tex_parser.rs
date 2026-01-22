@@ -12,8 +12,6 @@ impl Signature {
         sig.table
             .push((vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png"));
         sig.table.push((vec![0x42, 0x4d], "bmp"));
-        sig.table.push((vec![0x66, 0x74, 0x79, 0x70], "mp4"));
-        sig.table.push((vec![0x49, 0x44, 0x33], "mp3"));
 
         sig
     }
@@ -35,7 +33,7 @@ impl Signature {
     }
 }
 
-pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> (Vec<Vec<u8>>, String) {
+pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     const MAGIC: usize = 8;
     const SEP: i64 = 1;
     const TEX_SIZE: usize = 4;
@@ -46,13 +44,16 @@ pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> (Vec<Vec<u8>>, String) {
     let mut texi = [0u8; MAGIC];
     let mut texb = [0u8; MAGIC];
     let mut size = [0u8; TEX_SIZE];
+    let mut dimension: [[u8; TEX_SIZE]; 2] = [[0u8; TEX_SIZE]; 2]; // w h
     let mut payload: Vec<u8>;
-    let mut payloads: Vec<Vec<u8>> = Vec::new();
 
     buf.read_exact(&mut texv).unwrap();
     buf.seek_relative(SEP).unwrap();
     buf.read_exact(&mut texi).unwrap();
-    buf.seek_relative(SEP + (TEX_SIZE * 7) as i64).unwrap();
+    buf.seek_relative(SEP + MAGIC as i64).unwrap();
+    buf.read_exact(&mut dimension[0]).unwrap();
+    buf.read_exact(&mut dimension[1]).unwrap();
+    buf.seek_relative(SEP + (TEX_SIZE * 3) as i64).unwrap();
     buf.read_exact(&mut texb).unwrap();
     buf.seek_relative((MAGIC * 4) as i64 + SEP).unwrap();
     buf.read_exact(&mut size).unwrap();
@@ -62,39 +63,18 @@ pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> (Vec<Vec<u8>>, String) {
     buf.read_exact(&mut payload).unwrap();
 
     let sig = Signature::new();
-    let extension = sig.match_extension(&payload[0..8]).to_owned(); // probably wont break idk
+
+    if payload.len() < 8 {
+        panic!("Broken tex file with too small payload");
+    }
+    if String::from_utf8_lossy(&texb) == String::from("TEXB0003") {}
+
+    let extension = sig.match_extension(&payload[0..8]).to_owned();
 
     if extension == "tex" {
-        // if no match save as tex file
-        let mut payloads = Vec::new();
-        payloads.push(bytes.to_owned());
-        return (payloads, extension);
+        // if no match logics
+        return (bytes.to_vec(), extension);
     }
 
-    payloads.push(payload.clone());
-
-    if !parse_mipmap {
-        return (payloads, extension);
-    }
-
-    let bytes_len = bytes.len();
-
-    // read mip map
-    loop {
-        let pos = buf.stream_position().unwrap();
-        if bytes_len == pos as usize {
-            break;
-        }
-        buf.seek_relative((MAGIC * 2) as i64).unwrap();
-        buf.read_exact(&mut size).unwrap();
-        let size = u32::from_le_bytes(size);
-        if size == 0 {
-            break;
-        }
-        payload = vec![0u8; size as usize];
-        buf.read_exact(&mut payload).unwrap();
-        payloads.push(payload.clone());
-    }
-
-    (payloads, extension)
+    (payload, extension)
 }

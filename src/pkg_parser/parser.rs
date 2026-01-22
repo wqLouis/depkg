@@ -123,13 +123,9 @@ impl Pkg {
             let mut path = target.join(path);
             create_dir_all(path.parent().unwrap()).unwrap();
             if path.extension().unwrap_or_default() == "tex" {
-                let parsed = tex_parser::parse(bytes, true);
-                let filename = path.file_stem().unwrap().to_str().unwrap().to_owned();
-                for (level, mipmap) in parsed.0.iter().enumerate() {
-                    path.set_file_name(filename.clone() + &format!("_{}", level));
-                    path.set_extension(&parsed.1); // TODO: Support other formats
-                    fs::write(&path, mipmap).unwrap();
-                }
+                let parsed = tex_parser::parse(bytes);
+                path.set_extension(&parsed.1);
+                fs::write(path, parsed.0).unwrap();
             } else {
                 fs::write(path, bytes).unwrap();
             }
