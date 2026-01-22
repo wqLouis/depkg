@@ -11,6 +11,9 @@ impl Signature {
         sig.table.push((vec![0xff, 0xd8, 0xff], "jpg"));
         sig.table
             .push((vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png"));
+        sig.table.push((vec![0x42, 0x4d], "bmp"));
+        sig.table.push((vec![0x66, 0x74, 0x79, 0x70], "mp4"));
+        sig.table.push((vec![0x49, 0x44, 0x33], "mp3"));
 
         sig
     }
@@ -28,7 +31,7 @@ impl Signature {
                 return extension;
             }
         }
-        &"" // no match
+        &"tex" // no match
     }
 }
 
@@ -60,7 +63,13 @@ pub fn parse(bytes: &Vec<u8>, parse_mipmap: bool) -> (Vec<Vec<u8>>, String) {
 
     let sig = Signature::new();
     let extension = sig.match_extension(&payload[0..8]).to_owned(); // probably wont break idk
-    println!("{}", extension);
+
+    if extension == "tex" {
+        // if no match save as tex file
+        let mut payloads = Vec::new();
+        payloads.push(bytes.to_owned());
+        return (payloads, extension);
+    }
 
     payloads.push(payload.clone());
 
