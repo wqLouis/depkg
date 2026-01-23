@@ -1,36 +1,17 @@
-use std::io::{BufReader, Cursor, Read, Seek};
+use std::io::{BufReader, Cursor, Read};
 
-struct Signature {
-    // https://en.wikipedia.org/wiki/List_of_file_signatures
-    table: Vec<(Vec<u8>, &'static str)>, // (pattern, extension)
-}
+fn match_sig(bytes: [u8; 8]) -> String {
+    const PNG_SIG: ([u8; 8], &str) = ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png");
+    const JPG_SIG: ([u8; 3], &str) = ([0xff, 0xd8, 0xff], "jpg");
 
-impl Signature {
-    pub fn new() -> Signature {
-        let mut sig = Signature { table: Vec::new() };
-        sig.table.push((vec![0xff, 0xd8, 0xff], "jpg"));
-        sig.table
-            .push((vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png"));
-        sig.table.push((vec![0x42, 0x4d], "bmp"));
-
-        sig
+    if bytes == PNG_SIG.0 {
+        return PNG_SIG.1.to_owned();
+    }
+    if bytes[..3] == JPG_SIG.0 {
+        return JPG_SIG.1.to_owned();
     }
 
-    pub fn match_extension(&self, bytes: &[u8]) -> &str {
-        for (match_bytes, extension) in &self.table {
-            let mut valid = true;
-            for (byte, match_byte) in bytes.iter().zip(match_bytes) {
-                if byte != match_byte {
-                    valid = false;
-                    break;
-                }
-            }
-            if valid {
-                return extension;
-            }
-        }
-        &"tex" // no match
-    }
+    return "tex".to_owned();
 }
 
 pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
@@ -62,14 +43,12 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
 
     buf.read_exact(&mut payload).unwrap();
 
-    let sig = Signature::new();
+    let mut padded_arr = [0u8; 8];
+    let payload_len = std::cmp::min(8, payload.len());
+    padded_arr[..payload_len].copy_from_slice(&payload[..payload_len]);
+    let extension = match_sig(padded_arr);
 
-    if payload.len() < 8 {
-        panic!("Broken tex file with too small payload");
-    }
     if String::from_utf8_lossy(&texb) == String::from("TEXB0003") {}
-
-    let extension = sig.match_extension(&payload[0..8]).to_owned();
 
     if extension == "tex" {
         // if no match logics
