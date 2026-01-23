@@ -14,6 +14,18 @@ fn match_sig(bytes: [u8; 8]) -> String {
     return "tex".to_owned();
 }
 
+fn match_format(bytes: [u8; 4]) -> String {
+    let bytes = u32::from_le_bytes(bytes);
+    match bytes {
+        0 => return "raw".to_owned(),
+        4 | 7 => return "dxt1".to_owned(),
+        6 => return "dxt5".to_owned(),
+        8 => return "rg88".to_owned(),
+        9 => return "r8".to_owned(),
+        _ => return "unknown".to_owned(),
+    }
+}
+
 pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     const MAGIC: usize = 8;
     const SEP: i64 = 1;
@@ -25,16 +37,19 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let mut texi = [0u8; MAGIC];
     let mut texb = [0u8; MAGIC];
     let mut size = [0u8; TEX_SIZE];
-    let mut dimension: [[u8; TEX_SIZE]; 2] = [[0u8; TEX_SIZE]; 2]; // w h
+    let mut dimension = [[0u8; TEX_SIZE]; 2]; // w h
+    let mut format = [0u8; TEX_SIZE];
     let mut payload: Vec<u8>;
 
     buf.read_exact(&mut texv).unwrap();
     buf.seek_relative(SEP).unwrap();
     buf.read_exact(&mut texi).unwrap();
-    buf.seek_relative(SEP + MAGIC as i64).unwrap();
+    buf.seek_relative(SEP).unwrap();
+    buf.read_exact(&mut format).unwrap();
+    buf.seek_relative(TEX_SIZE as i64).unwrap();
     buf.read_exact(&mut dimension[0]).unwrap();
     buf.read_exact(&mut dimension[1]).unwrap();
-    buf.seek_relative(SEP + (TEX_SIZE * 3) as i64).unwrap();
+    buf.seek_relative((TEX_SIZE * 3) as i64).unwrap();
     buf.read_exact(&mut texb).unwrap();
     buf.seek_relative((MAGIC * 4) as i64 + SEP).unwrap();
     buf.read_exact(&mut size).unwrap();
@@ -52,6 +67,9 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
 
     if extension == "tex" {
         // if no match logics
+
+        println!("{}", match_format(format));
+
         return (bytes.to_vec(), extension);
     }
 
