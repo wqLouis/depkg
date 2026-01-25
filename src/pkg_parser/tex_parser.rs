@@ -1,5 +1,7 @@
 use std::io::{BufReader, Cursor, Read};
 
+use image::{ImageBuffer, Rgb, Rgba};
+
 fn match_sig(bytes: [u8; 8]) -> String {
     const PNG_SIG: ([u8; 8], &str) = ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png");
     const JPG_SIG: ([u8; 3], &str) = ([0xff, 0xd8, 0xff], "jpg");
@@ -22,8 +24,21 @@ fn match_format(bytes: [u8; 4]) -> String {
         6 => return "dxt5".to_owned(),
         8 => return "rg88".to_owned(),
         9 => return "r8".to_owned(),
-        _ => return "unknown".to_owned(),
+        _ => return "tex".to_owned(),
     }
+}
+
+fn r8_to_png(bytes: &Vec<u8>, h: u32, w: u32) -> Vec<u8> {
+    let mut image_buffer = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
+    let mut image: Vec<u8> = Vec::new();
+    let mut cur = Cursor::new(&mut image);
+
+    ImageBuffer::from_raw(w, h, image_buffer)
+        .unwrap()
+        .write_to(&mut cur, image::ImageFormat::Png)
+        .unwrap();
+
+    image
 }
 
 pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
@@ -61,14 +76,19 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let mut padded_arr = [0u8; 8];
     let payload_len = std::cmp::min(8, payload.len());
     padded_arr[..payload_len].copy_from_slice(&payload[..payload_len]);
-    let extension = match_sig(padded_arr);
+    let mut extension = match_sig(padded_arr);
 
     if String::from_utf8_lossy(&texb) == String::from("TEXB0003") {}
 
     if extension == "tex" {
         // if no match logics
+        extension = match_format(format);
 
-        println!("{}", match_format(format));
+        if extension == "r8" {
+            payload = r8_to_png(bytes, h, w);
+            extension = "png".to_owned();
+            return (payload, extension);
+        }
 
         return (bytes.to_vec(), extension);
     }
