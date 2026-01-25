@@ -3,6 +3,7 @@ use std::{
     fs::{self, File, create_dir_all},
     io::{BufReader, Read, Seek, SeekFrom},
     path::Path,
+    vec::Drain,
 };
 
 use crate::pkg_parser::tex_parser;
@@ -119,15 +120,23 @@ impl Pkg {
     }
 
     pub fn save_pkg(&mut self, target: &Path) {
+        const DRY_RUN: bool = true;
+
         for (path, bytes) in self.files.iter() {
             let mut path = target.join(path);
-            create_dir_all(path.parent().unwrap()).unwrap();
+            if !DRY_RUN {
+                create_dir_all(path.parent().unwrap()).unwrap();
+            }
             if path.extension().unwrap_or_default() == "tex" {
                 let parsed = tex_parser::parse(bytes);
                 path.set_extension(&parsed.1);
-                fs::write(path, parsed.0).unwrap();
+                if !DRY_RUN {
+                    fs::write(path, parsed.0).unwrap();
+                }
             } else {
-                fs::write(path, bytes).unwrap();
+                if !DRY_RUN {
+                    fs::write(path, bytes).unwrap();
+                }
             }
         }
     }

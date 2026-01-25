@@ -1,6 +1,6 @@
 use std::io::{BufReader, Cursor, Read};
 
-use image::{ImageBuffer, Rgb, Rgba};
+use image::{ImageBuffer, Rgba};
 
 fn match_sig(bytes: [u8; 8]) -> String {
     const PNG_SIG: ([u8; 8], &str) = ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png");
@@ -29,12 +29,12 @@ fn match_format(bytes: [u8; 4]) -> String {
 }
 
 fn r8_to_png(bytes: &Vec<u8>, h: u32, w: u32) -> Vec<u8> {
-    let mut image_buffer = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
+    let image_buffer: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
     let mut image: Vec<u8> = Vec::new();
     let mut cur = Cursor::new(&mut image);
 
-    ImageBuffer::from_raw(w, h, image_buffer)
-        .unwrap()
+    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, image_buffer)
+        .unwrap() // size unmatch BUG
         .write_to(&mut cur, image::ImageFormat::Png)
         .unwrap();
 
@@ -85,7 +85,12 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
         extension = match_format(format);
 
         if extension == "r8" {
-            payload = r8_to_png(bytes, h, w);
+            println!("{:?}", dimension.map(|f| u32::from_le_bytes(f)).iter());
+            payload = r8_to_png(
+                bytes,
+                u32::from_le_bytes(dimension[1]),
+                u32::from_le_bytes(dimension[0]),
+            );
             extension = "png".to_owned();
             return (payload, extension);
         }
