@@ -1,7 +1,7 @@
 mod pkg_parser;
 
 use crate::pkg_parser::parser::Pkg;
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -18,7 +18,7 @@ struct Args {
     dry_run: bool,
 
     /// Parse texture into image [default: true]
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = true, action = ArgAction::SetFalse)]
     parse_tex: bool,
 }
 

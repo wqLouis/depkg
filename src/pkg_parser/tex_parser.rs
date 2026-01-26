@@ -29,16 +29,32 @@ fn match_format(bytes: [u8; 4]) -> String {
 }
 
 fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
-    let image_buffer: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
-    let mut image: Vec<u8> = Vec::new();
-    let mut cur = Cursor::new(&mut image);
+    let image: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
+    let mut image_buffer: Vec<u8> = Vec::new();
+    let mut cur = Cursor::new(&mut image_buffer);
 
-    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, image_buffer)
-        .unwrap() // size unmatch BUG
+    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, image)
+        .unwrap()
         .write_to(&mut cur, image::ImageFormat::Png)
         .unwrap();
 
-    (image, "png".to_owned())
+    (image_buffer, "png".to_owned())
+}
+
+fn rg88_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
+    let image: Vec<u8> = bytes
+        .windows(2)
+        .flat_map(|b| [b[0], b[0], b[0], b[1]])
+        .collect();
+    let mut image_buffer: Vec<u8> = Vec::new();
+    let mut cur = Cursor::new(&mut image_buffer);
+
+    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, image)
+        .unwrap()
+        .write_to(&mut cur, image::ImageFormat::Png)
+        .unwrap();
+
+    (image_buffer, "png".to_owned())
 }
 
 fn raw_to_image(bytes: &Vec<u8>) -> (Vec<u8>, String) {
@@ -119,6 +135,7 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let payload = match extension.as_str() {
         "r8" => r8_to_png(&payload, w, h),
         "raw" => raw_to_image(&payload),
+        "rg88" => rg88_to_png(&payload, w, h),
         _ => (bytes.to_owned(), "tex".to_owned()),
     };
 
