@@ -1,4 +1,4 @@
-use std::io::{BufReader, Cursor, Read, Seek};
+use std::io::{BufReader, Cursor, Read};
 
 use image::{ImageBuffer, Rgba};
 
@@ -28,7 +28,7 @@ fn match_format(bytes: [u8; 4]) -> String {
     }
 }
 
-fn r8_to_png(bytes: &Vec<u8>, h: u32, w: u32) -> Vec<u8> {
+fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> Vec<u8> {
     let image_buffer: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
     let mut image: Vec<u8> = Vec::new();
     let mut cur = Cursor::new(&mut image);
@@ -70,14 +70,14 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     buf.seek_relative((TEX_SIZE * 3) as i64).unwrap();
     buf.read_exact(&mut texb).unwrap();
     buf.seek_relative(SEP).unwrap();
+    buf.read_exact(&mut image_count).unwrap();
+    buf.seek_relative((TEX_SIZE * 2) as i64).unwrap();
+    buf.read_exact(&mut mipmap_count).unwrap();
 
     extension = match_format(format);
 
     if extension == "raw" {
         // if image is raw png or jpg file
-        buf.read_exact(&mut image_count).unwrap();
-        buf.seek_relative((TEX_SIZE * 2) as i64).unwrap();
-        buf.read_exact(&mut mipmap_count).unwrap();
         buf.seek_relative((TEX_SIZE * 4) as i64).unwrap();
         buf.read_exact(&mut size).unwrap();
 
@@ -93,5 +93,40 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
         return (payload, extension);
     }
     // other texture format
+    if extension == "r8" {
+        let is_lz4: bool;
+        let mut lz4 = [0u8; TEX_SIZE];
+        let mut uncompressed_size = [0u8; TEX_SIZE];
+
+        buf.seek_relative(MAGIC as i64).unwrap();
+        buf.read_exact(&mut lz4).unwrap();
+        buf.read_exact(&mut uncompressed_size).unwrap();
+        buf.read_exact(&mut size).unwrap();
+
+        is_lz4 = if u32::from_le_bytes(lz4) == 1 {
+            true
+        } else {
+            false
+        };
+
+        payload = vec![0u8; u32::from_le_bytes(size) as usize];
+        buf.read_exact(&mut payload).unwrap();
+
+        if is_lz4 {
+            payload = lz4::block::decompress(
+                &mut payload,
+                Some(u32::from_le_bytes(uncompressed_size) as i32),
+            )
+            .unwrap();
+        }
+
+        payload = r8_to_png(
+            &payload,
+            u32::from_le_bytes(dimension[0]),
+            u32::from_le_bytes(dimension[1]),
+        );
+
+        extension = "png".to_owned();
+    }
     (payload, extension)
 }
