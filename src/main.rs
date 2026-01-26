@@ -1,10 +1,30 @@
 mod pkg_parser;
 
+use crate::pkg_parser::parser::Pkg;
+use clap::Parser;
 use std::path::Path;
 
-use crate::pkg_parser::parser::Pkg;
+#[derive(Parser)]
+#[command(version, about)]
+struct Args {
+    #[arg(short, long)]
+    pkg_path: String,
+
+    #[arg(short, long, default_value = ".")]
+    target_path: String,
+
+    /// Dry run without saving the file [default: false]
+    #[arg(short, long, default_value_t = false)]
+    dry_run: bool,
+
+    /// Parse texture into image [default: true]
+    #[arg(long, default_value_t = true)]
+    parse_tex: bool,
+}
 
 fn main() {
-    let mut pkg = Pkg::new(Path::new("./test/scene.pkg"));
-    pkg.save_pkg(Path::new("./output"));
+    let args = Args::parse();
+
+    let mut pkg = Pkg::new(Path::new(&args.pkg_path));
+    pkg.save_pkg(Path::new(&args.target_path), args.dry_run, args.parse_tex);
 }

@@ -118,27 +118,24 @@ impl Pkg {
         map
     }
 
-    pub fn save_pkg(&mut self, target: &Path) {
-        const DRY_RUN: bool = true;
-        const SAVE_AS_TEX: bool = false;
-
+    pub fn save_pkg(&mut self, target: &Path, dry_run: bool, parse_tex: bool) {
         for (path, bytes) in self.files.iter() {
             let mut path = target.join(path);
-            if !DRY_RUN {
+            if !dry_run {
                 create_dir_all(path.parent().unwrap()).unwrap();
             }
             if path.extension().unwrap_or_default() == "tex" {
-                if SAVE_AS_TEX & !DRY_RUN {
+                if parse_tex & !dry_run {
                     fs::write(path, bytes).unwrap();
                     continue;
                 }
                 let parsed = tex_parser::parse(bytes);
                 path.set_extension(&parsed.1);
-                if !DRY_RUN {
+                if !parse_tex {
                     fs::write(path, parsed.0).unwrap();
                 }
             } else {
-                if !DRY_RUN {
+                if !dry_run {
                     fs::write(path, bytes).unwrap();
                 }
             }
