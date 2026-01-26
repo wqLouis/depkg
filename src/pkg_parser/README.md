@@ -77,3 +77,76 @@ To read a file:
 1. Locate its entry in the **File Table**.
 2. Seek to the **Offset**.
 3. Read **Size** bytes.
+
+# `.tex` File Structure Specification
+
+This document outlines the binary layout of the texture file format as defined by the parser logic in `parse()`.
+
+## 1. Global Header
+The file begins with a fixed-size header containing version information, format identifiers, and global image dimensions.
+
+| Offset | Size (Bytes) | Type | Variable Name | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x00` | 8 | `[u8; 8]` | `texv` | Version Magic String (e.g., `TEXV0005`) |
+| `0x08` | 1 | - | - | Separator / Padding |
+| `0x09` | 8 | `[u8; 8]` | `texi` | Info Magic String |
+| `0x11` | 1 | - | - | Separator / Padding |
+| `0x12` | 4 | `u32` (LE) | `format` | Format ID (See [Format Table](#format-ids)) |
+| `0x16` | 4 | - | - | Skip / Padding |
+| `0x1A` | 4 | `u32` (LE) | `dimension[0]` | Target Image Width |
+| `0x1E` | 4 | `u32` (LE) | `dimension[1]` | Target Image Height |
+| `0x22` | 12 | - | - | Skip / Padding |
+| `0x2E` | 8 | `[u8; 8]` | `texb` | Block Magic String (e.g., `TEXB0003`) |
+| `0x36` | 1 | - | - | Separator / Padding |
+| `0x37` | 4 | `u32` (LE) | `image_count` | Number of images in container |
+| `0x3B` | 8 | - | - | Skip / Padding |
+| `0x43` | 4 | `u32` (LE) | `mipmap_count` | Number of mipmaps |
+
+---
+
+## 2. Format IDs
+The `format` field at offset `0x12` determines how the payload data is interpreted.
+
+| ID Value | Name | Description |
+| :--- | :--- | :--- |
+| `0` | `raw` | Uncompressed embedded image (PNG/JPG). |
+| `4` | `dxt1` | Compressed (DXT1). |
+| `6` | `dxt5` | Compressed (DXT5). |
+| `7` | `dxt1` | Compressed (DXT1 variant). |
+| `8` | `rg88` | Uncompressed (RG88). |
+| `9` | `r8` | Uncompressed (Grayscale/Mask). |
+
+---
+
+## 3. Payload Structure
+The structure of the data following the header depends on the `format` ID.
+
+### Case A: Format 0 (`raw`)
+If the format is `0`, the parser treats the data as a standard image file (PNG or JPG) embedded directly.
+
+| Offset | Size (Bytes) | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `0x47` | 16 | - | Skip / Padding |
+| `0x57` | 4 | `u32` (LE) | `size` | Size of the embedded image data |
+| `0x5B` | `size` | `u8[]` | `payload` | Raw bytes of the PNG or JPG file |
+
+**Notes:**
+*   The parser determines the file type (PNG vs JPG) by inspecting the first few bytes of the `payload`.
+*   It skips 16 bytes after `mipmap_count` before reading the data size.
+
+### Case B: Other Formats (DXT, R8, RG88)
+For formats `4`, `6`, `8`, and `9`, the payload is either raw pixel data or LZ4 compressed data.
+
+| Offset | Size (Bytes) | Type       | Description                                          |                                                |
+| :----- | :----------- | :--------- | :--------------------------------------------------- | ---------------------------------------------- |
+| `0x47` | 8            | -          | Skip / Padding (Likely specific mipmap width/height) |                                                |
+| `0x4F` | 4            | `u32` (LE) | `lz4`                                                | Compression Flag (`1` = Compressed, `0` = Raw) |
+| `0x53` | 4            | `u32` (LE) | `dncompressed_size`                                  | Size of data after decompression               |
+| `0x57` | 4            | `u32` (LE) | `size`                                               | Size of the data chunk in the file             |
+| `0x5B` | `size`       | `u8[]`     | `payload`                                            | The pixel data (compressed or raw)             |
+
+**Processing Logic:**
+1.  Read `size` bytes from `0x5B`.
+2.  If `lz4` == `1`: Decompress the data using LZ4 block decompression. The output buffer size must match `uncompressed_size`.
+3.  If `lz4` == `0`: The data is already raw.
+4.  Interpret the resulting bytes based on the Format ID (e.g., for `r8`, expand single bytes to RGBA pixels).
