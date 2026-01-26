@@ -121,6 +121,7 @@ impl Pkg {
 
     pub fn save_pkg(&mut self, target: &Path) {
         const DRY_RUN: bool = true;
+        const SAVE_AS_TEX: bool = false;
 
         for (path, bytes) in self.files.iter() {
             let mut path = target.join(path);
@@ -128,6 +129,10 @@ impl Pkg {
                 create_dir_all(path.parent().unwrap()).unwrap();
             }
             if path.extension().unwrap_or_default() == "tex" {
+                if SAVE_AS_TEX & !DRY_RUN {
+                    fs::write(path, bytes).unwrap();
+                    continue;
+                }
                 let parsed = tex_parser::parse(bytes);
                 path.set_extension(&parsed.1);
                 if !DRY_RUN {
