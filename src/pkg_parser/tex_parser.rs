@@ -126,6 +126,30 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
         "r8" => raw_to_png(r8_to_raw(&payload), w, h),
         "raw" => (payload.clone(), match_signature(&payload)),
         "rg88" => raw_to_png(rg88_to_raw(&payload), w, h),
+        "dxt1" => raw_to_png(
+            bcndecode::decode(
+                &payload,
+                w as usize,
+                h as usize,
+                bcndecode::BcnEncoding::Bc1,
+                bcndecode::BcnDecoderFormat::RGBA,
+            )
+            .unwrap(),
+            w,
+            h,
+        ),
+        "dxt5" => raw_to_png(
+            bcndecode::decode(
+                &payload,
+                w as usize,
+                h as usize,
+                bcndecode::BcnEncoding::Bc5,
+                bcndecode::BcnDecoderFormat::RGBA,
+            )
+            .unwrap(),
+            w,
+            h,
+        ),
         _ => (bytes.to_owned(), "tex".to_owned()),
     };
 
