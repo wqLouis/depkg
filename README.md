@@ -22,3 +22,11 @@ This project was inspired by the incredible work done by the open-source communi
 **Please respect the copyright of wallpaper creators.**
 
 This tool is intended primarily to assist in bringing Wallpaper Engine to Linux and for educational purposes only. We strictly condemn the use of this tool for piracy or the unauthorized distribution of paid content.
+
+---
+
+## Install
+
+```bash
+cargo install
+```
