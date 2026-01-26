@@ -1,5 +1,5 @@
 [package]
-name = "wallpaper-engine-vulkan"
+name = "depkg"
 version = "0.1.0"
 edition = "2024"
 
