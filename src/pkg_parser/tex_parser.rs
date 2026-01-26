@@ -1,4 +1,7 @@
-use std::io::{BufReader, Cursor, Read};
+use std::{
+    io::{BufReader, Cursor, Read},
+    panic,
+};
 
 use image::{ImageBuffer, Rgba};
 
@@ -28,7 +31,7 @@ fn match_format(bytes: [u8; 4]) -> String {
     }
 }
 
-fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> Vec<u8> {
+fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
     let image_buffer: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
     let mut image: Vec<u8> = Vec::new();
     let mut cur = Cursor::new(&mut image);
@@ -38,7 +41,7 @@ fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> Vec<u8> {
         .write_to(&mut cur, image::ImageFormat::Png)
         .unwrap();
 
-    image
+    (image, "png".to_owned())
 }
 
 pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
@@ -57,7 +60,7 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let mut format = [0u8; TEX_SIZE];
     let mut image_count = [0u8; TEX_SIZE];
     let mut mipmap_count = [0u8; TEX_SIZE];
-    let mut payload: Vec<u8> = Vec::new();
+    let mut payload: Vec<u8>;
 
     buf.read_exact(&mut texv).unwrap();
     buf.seek_relative(SEP).unwrap();
@@ -92,41 +95,42 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
 
         return (payload, extension);
     }
+
     // other texture format
-    if extension == "r8" {
-        let is_lz4: bool;
-        let mut lz4 = [0u8; TEX_SIZE];
-        let mut uncompressed_size = [0u8; TEX_SIZE];
+    let is_lz4: bool;
+    let mut lz4 = [0u8; TEX_SIZE];
+    let mut uncompressed_size = [0u8; TEX_SIZE];
 
-        buf.seek_relative(MAGIC as i64).unwrap();
-        buf.read_exact(&mut lz4).unwrap();
-        buf.read_exact(&mut uncompressed_size).unwrap();
-        buf.read_exact(&mut size).unwrap();
+    buf.seek_relative(MAGIC as i64).unwrap();
+    buf.read_exact(&mut lz4).unwrap();
+    buf.read_exact(&mut uncompressed_size).unwrap();
+    buf.read_exact(&mut size).unwrap();
 
-        is_lz4 = if u32::from_le_bytes(lz4) == 1 {
-            true
-        } else {
-            false
-        };
+    is_lz4 = if u32::from_le_bytes(lz4) == 1 {
+        true
+    } else {
+        false
+    };
 
-        payload = vec![0u8; u32::from_le_bytes(size) as usize];
-        buf.read_exact(&mut payload).unwrap();
+    payload = vec![0u8; u32::from_le_bytes(size) as usize];
+    buf.read_exact(&mut payload).unwrap();
 
-        if is_lz4 {
-            payload = lz4::block::decompress(
-                &mut payload,
-                Some(u32::from_le_bytes(uncompressed_size) as i32),
-            )
-            .unwrap();
-        }
-
-        payload = r8_to_png(
-            &payload,
-            u32::from_le_bytes(dimension[0]),
-            u32::from_le_bytes(dimension[1]),
-        );
-
-        extension = "png".to_owned();
+    if is_lz4 {
+        payload = lz4::block::decompress(
+            &mut payload,
+            Some(u32::from_le_bytes(uncompressed_size) as i32),
+        )
+        .unwrap();
     }
-    (payload, extension)
+
+    let w = u32::from_le_bytes(dimension[0]);
+    let h = u32::from_le_bytes(dimension[1]);
+    let extension = extension.as_str();
+
+    let payload = match extension {
+        "r8" => r8_to_png(&payload, w, h),
+        _ => (bytes.to_owned(), "tex".to_owned()),
+    };
+
+    payload
 }
