@@ -1,4 +1,4 @@
-use std::io::{BufReader, Cursor, Read};
+use std::io::{BufReader, Cursor, Read, Seek};
 
 use image::{ImageBuffer, Rgba};
 
@@ -47,6 +47,7 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     const TEX_SIZE: usize = 4;
 
     let mut buf = BufReader::new(Cursor::new(bytes));
+    let mut extension: String;
 
     let mut texv = [0u8; MAGIC]; // I have no idea what all this magic variables are
     let mut texi = [0u8; MAGIC];
@@ -54,7 +55,9 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let mut size = [0u8; TEX_SIZE];
     let mut dimension = [[0u8; TEX_SIZE]; 2]; // w h
     let mut format = [0u8; TEX_SIZE];
-    let mut payload: Vec<u8>;
+    let mut image_count = [0u8; TEX_SIZE];
+    let mut mipmap_count = [0u8; TEX_SIZE];
+    let mut payload: Vec<u8> = Vec::new();
 
     buf.read_exact(&mut texv).unwrap();
     buf.seek_relative(SEP).unwrap();
@@ -66,37 +69,29 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     buf.read_exact(&mut dimension[1]).unwrap();
     buf.seek_relative((TEX_SIZE * 3) as i64).unwrap();
     buf.read_exact(&mut texb).unwrap();
-    buf.seek_relative((MAGIC * 4) as i64 + SEP).unwrap();
-    buf.read_exact(&mut size).unwrap();
+    buf.seek_relative(SEP).unwrap();
 
-    payload = vec![0u8; u32::from_le_bytes(size) as usize];
+    extension = match_format(format);
 
-    buf.read_exact(&mut payload).unwrap();
+    if extension == "raw" {
+        // if image is raw png or jpg file
+        buf.read_exact(&mut image_count).unwrap();
+        buf.seek_relative((TEX_SIZE * 2) as i64).unwrap();
+        buf.read_exact(&mut mipmap_count).unwrap();
+        buf.seek_relative((TEX_SIZE * 4) as i64).unwrap();
+        buf.read_exact(&mut size).unwrap();
 
-    let mut padded_arr = [0u8; 8];
-    let payload_len = std::cmp::min(8, payload.len());
-    padded_arr[..payload_len].copy_from_slice(&payload[..payload_len]);
-    let mut extension = match_sig(padded_arr);
+        payload = vec![0u8; u32::from_le_bytes(size) as usize];
 
-    if String::from_utf8_lossy(&texb) == String::from("TEXB0003") {}
+        buf.read_exact(&mut payload).unwrap();
 
-    if extension == "tex" {
-        // if no match logics
-        extension = match_format(format);
+        let mut padded_arr = [0u8; 8];
+        let payload_len = std::cmp::min(8, payload.len());
+        padded_arr[..payload_len].copy_from_slice(&payload[..payload_len]);
+        extension = match_sig(padded_arr);
 
-        if extension == "r8" {
-            println!("{:?}", dimension.map(|f| u32::from_le_bytes(f)).iter());
-            payload = r8_to_png(
-                bytes,
-                u32::from_le_bytes(dimension[1]),
-                u32::from_le_bytes(dimension[0]),
-            );
-            extension = "png".to_owned();
-            return (payload, extension);
-        }
-
-        return (bytes.to_vec(), extension);
+        return (payload, extension);
     }
-
+    // other texture format
     (payload, extension)
 }
