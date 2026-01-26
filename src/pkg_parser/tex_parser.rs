@@ -41,13 +41,25 @@ fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
     (image, "png".to_owned())
 }
 
+fn raw_to_image(bytes: &Vec<u8>) -> (Vec<u8>, String) {
+    let mut padded_arr = [0u8; 8];
+    let payload_len = std::cmp::min(8, bytes.len());
+
+    padded_arr[..payload_len].copy_from_slice(&bytes[..payload_len]);
+
+    let extension = match_sig(padded_arr);
+
+    (bytes.to_owned(), extension)
+}
+
 pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     const MAGIC: usize = 8;
     const SEP: i64 = 1;
     const TEX_SIZE: usize = 4;
 
     let mut buf = BufReader::new(Cursor::new(bytes));
-    let mut extension: String;
+    let extension: String;
+    let is_lz4: bool;
 
     let mut texv = [0u8; MAGIC]; // I have no idea what all this magic variables are
     let mut texi = [0u8; MAGIC];
@@ -57,6 +69,8 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let mut format = [0u8; TEX_SIZE];
     let mut image_count = [0u8; TEX_SIZE];
     let mut mipmap_count = [0u8; TEX_SIZE];
+    let mut lz4 = [0u8; TEX_SIZE];
+    let mut decompressed_size = [0u8; TEX_SIZE];
     let mut payload: Vec<u8>;
 
     buf.read_exact(&mut texv).unwrap();
@@ -76,28 +90,7 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
 
     extension = match_format(format);
 
-    if extension == "raw" {
-        // if image is raw png or jpg file
-        buf.seek_relative((TEX_SIZE * 4) as i64).unwrap();
-        buf.read_exact(&mut size).unwrap();
-
-        payload = vec![0u8; u32::from_le_bytes(size) as usize];
-
-        buf.read_exact(&mut payload).unwrap();
-
-        let mut padded_arr = [0u8; 8];
-        let payload_len = std::cmp::min(8, payload.len());
-        padded_arr[..payload_len].copy_from_slice(&payload[..payload_len]);
-        extension = match_sig(padded_arr);
-
-        return (payload, extension);
-    }
-
     // other texture format
-    let is_lz4: bool;
-    let mut lz4 = [0u8; TEX_SIZE];
-    let mut decompressed_size = [0u8; TEX_SIZE];
-
     buf.seek_relative(MAGIC as i64).unwrap();
     buf.read_exact(&mut lz4).unwrap();
     buf.read_exact(&mut decompressed_size).unwrap();
@@ -125,6 +118,7 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
 
     let payload = match extension.as_str() {
         "r8" => r8_to_png(&payload, w, h),
+        "raw" => raw_to_image(&payload),
         _ => (bytes.to_owned(), "tex".to_owned()),
     };
 
