@@ -2,20 +2,6 @@ use std::io::{BufReader, Cursor, Read};
 
 use image::{ImageBuffer, Rgba};
 
-fn match_sig(bytes: [u8; 8]) -> String {
-    const PNG_SIG: ([u8; 8], &str) = ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png");
-    const JPG_SIG: ([u8; 3], &str) = ([0xff, 0xd8, 0xff], "jpg");
-
-    if bytes == PNG_SIG.0 {
-        return PNG_SIG.1.to_owned();
-    }
-    if bytes[..3] == JPG_SIG.0 {
-        return JPG_SIG.1.to_owned();
-    }
-
-    return "tex".to_owned();
-}
-
 fn match_format(bytes: [u8; 4]) -> String {
     let bytes = u32::from_le_bytes(bytes);
     match bytes {
@@ -28,44 +14,48 @@ fn match_format(bytes: [u8; 4]) -> String {
     }
 }
 
-fn r8_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
+fn r8_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
     let image: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
-    let mut image_buffer: Vec<u8> = Vec::new();
-    let mut cur = Cursor::new(&mut image_buffer);
 
-    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, image)
-        .unwrap()
-        .write_to(&mut cur, image::ImageFormat::Png)
-        .unwrap();
-
-    (image_buffer, "png".to_owned())
+    image
 }
 
-fn rg88_to_png(bytes: &Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
+fn rg88_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
     let image: Vec<u8> = bytes
         .windows(2)
         .flat_map(|b| [b[0], b[0], b[0], b[1]])
         .collect();
-    let mut image_buffer: Vec<u8> = Vec::new();
-    let mut cur = Cursor::new(&mut image_buffer);
-
-    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, image)
-        .unwrap()
-        .write_to(&mut cur, image::ImageFormat::Png)
-        .unwrap();
-
-    (image_buffer, "png".to_owned())
+    image
 }
 
-fn raw_to_image(bytes: &Vec<u8>) -> (Vec<u8>, String) {
+fn match_signature(bytes: &Vec<u8>) -> String {
+    const PNG_SIG: ([u8; 8], &str) = ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png");
+    const JPG_SIG: ([u8; 3], &str) = ([0xff, 0xd8, 0xff], "jpg");
+
     let mut padded_arr = [0u8; 8];
     let payload_len = std::cmp::min(8, bytes.len());
 
     padded_arr[..payload_len].copy_from_slice(&bytes[..payload_len]);
 
-    let extension = match_sig(padded_arr);
+    if padded_arr == PNG_SIG.0 {
+        return PNG_SIG.1.to_owned();
+    }
+    if padded_arr[..3] == JPG_SIG.0 {
+        return JPG_SIG.1.to_owned();
+    }
 
-    (bytes.to_owned(), extension)
+    "tex".to_owned()
+}
+
+fn raw_to_png(bytes: Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
+    let mut buf: Vec<u8> = Vec::new();
+    let mut cur = Cursor::new(&mut buf);
+
+    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, bytes.to_owned())
+        .unwrap()
+        .write_to(&mut cur, image::ImageFormat::Png)
+        .unwrap();
+    (buf, "png".to_owned())
 }
 
 pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
@@ -133,9 +123,9 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     let h = u32::from_le_bytes(dimension[1]);
 
     let payload = match extension.as_str() {
-        "r8" => r8_to_png(&payload, w, h),
-        "raw" => raw_to_image(&payload),
-        "rg88" => rg88_to_png(&payload, w, h),
+        "r8" => raw_to_png(r8_to_raw(&payload), w, h),
+        "raw" => (payload.clone(), match_signature(&payload)),
+        "rg88" => raw_to_png(rg88_to_raw(&payload), w, h),
         _ => (bytes.to_owned(), "tex".to_owned()),
     };
 
