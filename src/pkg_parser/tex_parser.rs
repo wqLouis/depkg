@@ -122,9 +122,8 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
 
     let w = u32::from_le_bytes(dimension[0]);
     let h = u32::from_le_bytes(dimension[1]);
-    let extension = extension.as_str();
 
-    let payload = match extension {
+    let payload = match extension.as_str() {
         "r8" => r8_to_png(&payload, w, h),
         _ => (bytes.to_owned(), "tex".to_owned()),
     };
