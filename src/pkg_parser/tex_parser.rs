@@ -1,7 +1,4 @@
-use std::{
-    io::{BufReader, Cursor, Read},
-    panic,
-};
+use std::io::{BufReader, Cursor, Read};
 
 use image::{ImageBuffer, Rgba};
 
@@ -99,11 +96,11 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     // other texture format
     let is_lz4: bool;
     let mut lz4 = [0u8; TEX_SIZE];
-    let mut uncompressed_size = [0u8; TEX_SIZE];
+    let mut decompressed_size = [0u8; TEX_SIZE];
 
     buf.seek_relative(MAGIC as i64).unwrap();
     buf.read_exact(&mut lz4).unwrap();
-    buf.read_exact(&mut uncompressed_size).unwrap();
+    buf.read_exact(&mut decompressed_size).unwrap();
     buf.read_exact(&mut size).unwrap();
 
     is_lz4 = if u32::from_le_bytes(lz4) == 1 {
@@ -118,7 +115,7 @@ pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
     if is_lz4 {
         payload = lz4::block::decompress(
             &mut payload,
-            Some(u32::from_le_bytes(uncompressed_size) as i32),
+            Some(u32::from_le_bytes(decompressed_size) as i32),
         )
         .unwrap();
     }
