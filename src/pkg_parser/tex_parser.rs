@@ -107,18 +107,18 @@ impl Tex {
         })
     }
 
-    pub fn parse_to_image(&self) -> (Vec<u8>, String) {
+    pub fn parse_to_image(&self) -> Option<(Vec<u8>, String)> {
         let payload = match self.extension.as_str() {
             "r8" => Self::raw_to_png(
                 Self::r8_to_raw(&self.payload),
                 self.dimension[0],
                 self.dimension[1],
-            ),
+            )?,
             "rg88" => Self::raw_to_png(
                 Self::rg88_to_raw(&self.payload),
                 self.dimension[0],
                 self.dimension[1],
-            ),
+            )?,
             "dxt1" => Self::raw_to_png(
                 bcndecode::decode(
                     &self.payload,
@@ -130,7 +130,7 @@ impl Tex {
                 .unwrap(),
                 self.dimension[0],
                 self.dimension[1],
-            ),
+            )?,
             "dxt5" => Self::raw_to_png(
                 bcndecode::decode(
                     &self.payload,
@@ -142,13 +142,13 @@ impl Tex {
                 .unwrap(),
                 self.dimension[0],
                 self.dimension[1],
-            ),
+            )?,
             "jpg" => (self.payload.clone(), "jpg".to_owned()),
             "png" => (self.payload.clone(), "png".to_owned()),
             _ => (self.payload.clone(), "tex".to_owned()),
         };
 
-        return payload;
+        Some(payload)
     }
 
     fn r8_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
@@ -181,14 +181,13 @@ impl Tex {
         "tex".to_owned()
     }
 
-    fn raw_to_png(bytes: Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
+    fn raw_to_png(bytes: Vec<u8>, w: u32, h: u32) -> Option<(Vec<u8>, String)> {
         let mut buf: Vec<u8> = Vec::new();
         let mut cur = Cursor::new(&mut buf);
 
-        ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, bytes.to_owned())
-            .unwrap()
+        ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(w, h, bytes.to_owned())?
             .write_to(&mut cur, image::ImageFormat::Png)
-            .unwrap();
-        (buf, "png".to_owned())
+            .ok()?;
+        Some((buf, "png".to_owned()))
     }
 }

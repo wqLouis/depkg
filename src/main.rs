@@ -31,7 +31,8 @@ fn main() {
     let pkg_path = Path::new(&args.pkg_path);
 
     if pkg_path.extension().unwrap_or_default() != "pkg" {
-        panic!("Path is not a pkg file");
+        println!("Path is not a pkg file");
+        return;
     }
 
     let mut pkg = Pkg::new(pkg_path);
