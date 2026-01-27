@@ -15,7 +15,7 @@ A high-performance Rust library and command-line tool for parsing Wallpaper Engi
 Build and install locally:
 
 ```bash
-git clone https://github.com/yourusername/wallpaper-engine-pkg-parser
+git clone https://github.com/wqLouis/depkg.git
 cd wallpaper-engine-pkg-parser
 cargo install --path .
 ```
