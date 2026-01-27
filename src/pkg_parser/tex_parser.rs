@@ -51,7 +51,10 @@ impl Tex {
         buf.seek_relative(SEP).ok()?;
         buf.read_exact(&mut image_count).ok()?;
         buf.seek_relative((TEX_SIZE * 2) as i64).ok()?;
-        buf.read_exact(&mut mipmap_count).ok()?;
+
+        if String::from_utf8_lossy(&texb) == "TEXB0004" {
+            buf.read_exact(&mut mipmap_count).ok()?;
+        }
 
         buf.seek_relative(MAGIC as i64).ok()?;
         buf.read_exact(&mut lz4).ok()?;
