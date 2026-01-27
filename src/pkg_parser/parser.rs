@@ -133,6 +133,10 @@ impl Pkg {
                 let tex = match tex {
                     Some(val) => val,
                     None => {
+                        println!(
+                            "failed to parse path: {} \n",
+                            path.to_str().unwrap_or_default()
+                        );
                         continue;
                     }
                 };
@@ -151,8 +155,19 @@ impl Pkg {
                 }
 
                 let parsed = tex.parse_to_image();
+                let parsed = match parsed {
+                    None => {
+                        println!(
+                            "failed to parse image: {}\n",
+                            path.to_str().unwrap_or_default()
+                        );
+                        continue;
+                    }
+                    Some(val) => val,
+                };
+
                 path.set_extension(&parsed.1);
-                if parse_tex {
+                if parse_tex & !dry_run {
                     fs::write(path, parsed.0).unwrap();
                 }
             } else {
