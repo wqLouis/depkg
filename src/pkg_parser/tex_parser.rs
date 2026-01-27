@@ -15,17 +15,14 @@ fn match_format(bytes: [u8; 4]) -> String {
 }
 
 fn r8_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
-    let image: Vec<u8> = bytes.iter().flat_map(|&b| [b, b, b, 255]).collect();
-
-    image
+    bytes.iter().flat_map(|&b| [b, b, b, 255]).collect()
 }
 
 fn rg88_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
-    let image: Vec<u8> = bytes
+    bytes
         .windows(2)
         .flat_map(|b| [b[0], b[0], b[0], b[1]])
-        .collect();
-    image
+        .collect()
 }
 
 fn match_signature(bytes: &Vec<u8>) -> String {
@@ -58,100 +55,145 @@ fn raw_to_png(bytes: Vec<u8>, w: u32, h: u32) -> (Vec<u8>, String) {
     (buf, "png".to_owned())
 }
 
-pub fn parse(bytes: &Vec<u8>) -> (Vec<u8>, String) {
-    const MAGIC: usize = 8;
-    const SEP: i64 = 1;
-    const TEX_SIZE: usize = 4;
+pub struct Tex {
+    pub texv: String,
+    pub texi: String,
+    pub texb: String,
+    pub size: u32,
+    pub dimension: [u32; 2],
+    pub image_count: u32,
+    pub mipmap_count: u32,
+    pub lz4: bool,
+    pub decompressed_size: u32,
+    pub extension: String,
+    payload: Vec<u8>,
+}
 
-    let mut buf = BufReader::new(Cursor::new(bytes));
-    let extension: String;
-    let is_lz4: bool;
+impl Tex {
+    pub fn new(bytes: &Vec<u8>) -> Tex {
+        const MAGIC: usize = 8;
+        const SEP: i64 = 1;
+        const TEX_SIZE: usize = 4;
 
-    let mut texv = [0u8; MAGIC]; // I have no idea what all this magic variables are
-    let mut texi = [0u8; MAGIC];
-    let mut texb = [0u8; MAGIC];
-    let mut size = [0u8; TEX_SIZE];
-    let mut dimension = [[0u8; TEX_SIZE]; 2]; // w h
-    let mut format = [0u8; TEX_SIZE];
-    let mut image_count = [0u8; TEX_SIZE];
-    let mut mipmap_count = [0u8; TEX_SIZE];
-    let mut lz4 = [0u8; TEX_SIZE];
-    let mut decompressed_size = [0u8; TEX_SIZE];
-    let mut payload: Vec<u8>;
+        let mut buf = BufReader::new(Cursor::new(bytes));
+        let mut extension: String;
+        let is_lz4: bool;
 
-    buf.read_exact(&mut texv).unwrap();
-    buf.seek_relative(SEP).unwrap();
-    buf.read_exact(&mut texi).unwrap();
-    buf.seek_relative(SEP).unwrap();
-    buf.read_exact(&mut format).unwrap();
-    buf.seek_relative(TEX_SIZE as i64).unwrap();
-    buf.read_exact(&mut dimension[0]).unwrap();
-    buf.read_exact(&mut dimension[1]).unwrap();
-    buf.seek_relative((TEX_SIZE * 3) as i64).unwrap();
-    buf.read_exact(&mut texb).unwrap();
-    buf.seek_relative(SEP).unwrap();
-    buf.read_exact(&mut image_count).unwrap();
-    buf.seek_relative((TEX_SIZE * 2) as i64).unwrap();
-    buf.read_exact(&mut mipmap_count).unwrap();
+        let mut texv = [0u8; MAGIC]; // I have no idea what all this magic variables are
+        let mut texi = [0u8; MAGIC];
+        let mut texb = [0u8; MAGIC];
+        let mut size = [0u8; TEX_SIZE];
+        let mut dimension = [[0u8; TEX_SIZE]; 2]; // w h
+        let mut format = [0u8; TEX_SIZE];
+        let mut image_count = [0u8; TEX_SIZE];
+        let mut mipmap_count = [0u8; TEX_SIZE];
+        let mut lz4 = [0u8; TEX_SIZE];
+        let mut decompressed_size = [0u8; TEX_SIZE];
+        let mut payload: Vec<u8>;
 
-    extension = match_format(format);
+        buf.read_exact(&mut texv).unwrap();
+        buf.seek_relative(SEP).unwrap();
+        buf.read_exact(&mut texi).unwrap();
+        buf.seek_relative(SEP).unwrap();
+        buf.read_exact(&mut format).unwrap();
+        buf.seek_relative(TEX_SIZE as i64).unwrap();
+        buf.read_exact(&mut dimension[0]).unwrap();
+        buf.read_exact(&mut dimension[1]).unwrap();
+        buf.seek_relative((TEX_SIZE * 3) as i64).unwrap();
+        buf.read_exact(&mut texb).unwrap();
+        buf.seek_relative(SEP).unwrap();
+        buf.read_exact(&mut image_count).unwrap();
+        buf.seek_relative((TEX_SIZE * 2) as i64).unwrap();
+        buf.read_exact(&mut mipmap_count).unwrap();
 
-    // other texture format
-    buf.seek_relative(MAGIC as i64).unwrap();
-    buf.read_exact(&mut lz4).unwrap();
-    buf.read_exact(&mut decompressed_size).unwrap();
-    buf.read_exact(&mut size).unwrap();
+        buf.seek_relative(MAGIC as i64).unwrap();
+        buf.read_exact(&mut lz4).unwrap();
+        buf.read_exact(&mut decompressed_size).unwrap();
+        buf.read_exact(&mut size).unwrap();
 
-    is_lz4 = if u32::from_le_bytes(lz4) == 1 {
-        true
-    } else {
-        false
-    };
+        is_lz4 = if u32::from_le_bytes(lz4) == 1 {
+            true
+        } else {
+            false
+        };
 
-    payload = vec![0u8; u32::from_le_bytes(size) as usize];
-    buf.read_exact(&mut payload).unwrap();
+        payload = vec![0u8; u32::from_le_bytes(size) as usize];
+        buf.read_exact(&mut payload).unwrap();
+        extension = match_format(format);
 
-    if is_lz4 {
-        payload = lz4::block::decompress(
-            &mut payload,
-            Some(u32::from_le_bytes(decompressed_size) as i32),
-        )
-        .unwrap();
+        extension = if extension == "raw" {
+            match_signature(&payload)
+        } else {
+            extension
+        };
+
+        if is_lz4 {
+            payload = lz4::block::decompress(
+                &mut payload,
+                Some(u32::from_le_bytes(decompressed_size) as i32),
+            )
+            .unwrap();
+        }
+
+        return Tex {
+            texv: String::from_utf8_lossy(&texv).into_owned(),
+            texi: String::from_utf8_lossy(&texi).into_owned(),
+            texb: String::from_utf8_lossy(&texb).into_owned(),
+            size: u32::from_le_bytes(size),
+            dimension: [
+                u32::from_le_bytes(dimension[0]),
+                u32::from_le_bytes(dimension[1]),
+            ],
+            image_count: u32::from_le_bytes(image_count),
+            mipmap_count: u32::from_le_bytes(mipmap_count),
+            lz4: is_lz4,
+            decompressed_size: u32::from_le_bytes(decompressed_size),
+            payload: payload,
+            extension: extension,
+        };
     }
 
-    let w = u32::from_le_bytes(dimension[0]);
-    let h = u32::from_le_bytes(dimension[1]);
+    pub fn parse_to_image(&self) -> (Vec<u8>, String) {
+        let payload = match self.extension.as_str() {
+            "r8" => raw_to_png(
+                r8_to_raw(&self.payload),
+                self.dimension[0],
+                self.dimension[1],
+            ),
+            "rg88" => raw_to_png(
+                rg88_to_raw(&self.payload),
+                self.dimension[0],
+                self.dimension[1],
+            ),
+            "dxt1" => raw_to_png(
+                bcndecode::decode(
+                    &self.payload,
+                    self.dimension[0] as usize,
+                    self.dimension[1] as usize,
+                    bcndecode::BcnEncoding::Bc1,
+                    bcndecode::BcnDecoderFormat::RGBA,
+                )
+                .unwrap(),
+                self.dimension[0],
+                self.dimension[1],
+            ),
+            "dxt5" => raw_to_png(
+                bcndecode::decode(
+                    &self.payload,
+                    self.dimension[0] as usize,
+                    self.dimension[1] as usize,
+                    bcndecode::BcnEncoding::Bc5,
+                    bcndecode::BcnDecoderFormat::RGBA,
+                )
+                .unwrap(),
+                self.dimension[0],
+                self.dimension[1],
+            ),
+            "jpg" => (self.payload.clone(), "jpg".to_owned()),
+            "png" => (self.payload.clone(), "png".to_owned()),
+            _ => (self.payload.clone(), "tex".to_owned()),
+        };
 
-    let payload = match extension.as_str() {
-        "r8" => raw_to_png(r8_to_raw(&payload), w, h),
-        "raw" => (payload.clone(), match_signature(&payload)),
-        "rg88" => raw_to_png(rg88_to_raw(&payload), w, h),
-        "dxt1" => raw_to_png(
-            bcndecode::decode(
-                &payload,
-                w as usize,
-                h as usize,
-                bcndecode::BcnEncoding::Bc1,
-                bcndecode::BcnDecoderFormat::RGBA,
-            )
-            .unwrap(),
-            w,
-            h,
-        ),
-        "dxt5" => raw_to_png(
-            bcndecode::decode(
-                &payload,
-                w as usize,
-                h as usize,
-                bcndecode::BcnEncoding::Bc5,
-                bcndecode::BcnDecoderFormat::RGBA,
-            )
-            .unwrap(),
-            w,
-            h,
-        ),
-        _ => (bytes.to_owned(), "tex".to_owned()),
-    };
-
-    payload
+        return payload;
+    }
 }
