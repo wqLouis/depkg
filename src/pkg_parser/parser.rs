@@ -130,6 +130,12 @@ impl Pkg {
                     continue;
                 }
                 let tex = tex_parser::Tex::new(bytes);
+                let tex = match tex {
+                    Some(val) => val,
+                    None => {
+                        continue;
+                    }
+                };
 
                 if verbose {
                     println!("Texture:");
