@@ -28,8 +28,13 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
+    let pkg_path = Path::new(&args.pkg_path);
 
-    let mut pkg = Pkg::new(Path::new(&args.pkg_path));
+    if pkg_path.extension().unwrap_or_default() != "pkg" {
+        panic!("Path is not a pkg file");
+    }
+
+    let mut pkg = Pkg::new(pkg_path);
     pkg.save_pkg(
         Path::new(&args.target_path),
         args.dry_run,
