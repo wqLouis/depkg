@@ -20,11 +20,20 @@ struct Args {
     /// Parse texture into image [default: true]
     #[arg(long, default_value_t = true, action = ArgAction::SetFalse)]
     parse_tex: bool,
+
+    /// Verbose output [defualt: false]
+    #[arg(long, default_value_t = false)]
+    verbose: bool,
 }
 
 fn main() {
     let args = Args::parse();
 
     let mut pkg = Pkg::new(Path::new(&args.pkg_path));
-    pkg.save_pkg(Path::new(&args.target_path), args.dry_run, args.parse_tex);
+    pkg.save_pkg(
+        Path::new(&args.target_path),
+        args.dry_run,
+        args.parse_tex,
+        args.verbose,
+    );
 }

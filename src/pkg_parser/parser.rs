@@ -118,7 +118,7 @@ impl Pkg {
         map
     }
 
-    pub fn save_pkg(&mut self, target: &Path, dry_run: bool, parse_tex: bool) {
+    pub fn save_pkg(&mut self, target: &Path, dry_run: bool, parse_tex: bool, verbose: bool) {
         for (path, bytes) in self.files.iter() {
             let mut path = target.join(path);
             if !dry_run {
@@ -129,7 +129,22 @@ impl Pkg {
                     fs::write(path, bytes).unwrap();
                     continue;
                 }
-                let parsed = tex_parser::parse(bytes);
+                let tex = tex_parser::Tex::new(bytes);
+
+                if verbose {
+                    println!("Texture:");
+                    println!("Texv: {}", tex.texv);
+                    println!("Texi: {}", tex.texi);
+                    println!("Texb: {}", tex.texb);
+                    println!("Image count: {}", tex.image_count);
+                    println!("Mipmap count: {}", tex.mipmap_count);
+                    println!("Lz4 compressed: {}", tex.lz4);
+                    println!("Texture size: {}", tex.size);
+                    println!("w: {} h: {}", tex.dimension[0], tex.dimension[1]);
+                    println!();
+                }
+
+                let parsed = tex.parse_to_image();
                 path.set_extension(&parsed.1);
                 if !parse_tex {
                     fs::write(path, parsed.0).unwrap();
