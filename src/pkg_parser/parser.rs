@@ -125,7 +125,7 @@ impl Pkg {
                 create_dir_all(path.parent().unwrap()).unwrap();
             }
             if path.extension().unwrap_or_default() == "tex" {
-                if parse_tex & !dry_run {
+                if !parse_tex & !dry_run {
                     fs::write(path, bytes).unwrap();
                     continue;
                 }
@@ -146,7 +146,7 @@ impl Pkg {
 
                 let parsed = tex.parse_to_image();
                 path.set_extension(&parsed.1);
-                if !parse_tex {
+                if parse_tex {
                     fs::write(path, parsed.0).unwrap();
                 }
             } else {
