@@ -1,5 +1,8 @@
 # Wallpaper Engine Pkg Parser
 
+[![crates.io](https://img.shields.io/crates/d/depkg.svg)](https://crates.io/crates/depkg)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 A high-performance Rust library and command-line tool for parsing Wallpaper Engine `.pkg` archives and `.tex` texture files.
 
 ## ✨ Features
