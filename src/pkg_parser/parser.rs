@@ -10,7 +10,6 @@ use crate::pkg_parser::tex_parser;
 pub struct Pkg {
     file: BufReader<File>,
     pub header: Header,
-    pub entries: Vec<Entry>,
     pub files: HashMap<String, Vec<u8>>,
 }
 
@@ -35,7 +34,6 @@ impl Pkg {
         Pkg {
             file,
             header,
-            entries,
             files,
         }
     }
@@ -80,7 +78,7 @@ impl Pkg {
         const DATA_SIZE: usize = 4;
 
         let mut path_len = [0u8; PATH_LEN];
-        let mut entries = Vec::<Entry>::new();
+        let mut entries = Vec::<Entry>::with_capacity(entry_count as usize);
 
         for _ in 0..entry_count {
             file.read_exact(&mut path_len).unwrap();
