@@ -8,18 +8,16 @@ use std::{
 use crate::pkg_parser::tex_parser;
 
 pub struct Pkg {
-    file: BufReader<File>,
     pub header: Header,
-    pub entries: Vec<Entry>,
     pub files: HashMap<String, Vec<u8>>,
 }
 
-pub struct Header {
+pub(self) struct Header {
     version: String,
     file_count: u32,
 }
 
-pub struct Entry {
+pub(self) struct Entry {
     pub path: String,
     pub offset: u32,
     pub size: u32,
@@ -32,12 +30,7 @@ impl Pkg {
         let entries = Self::read_entries(&mut file, header.file_count);
         let files = Self::read_files(&mut file, &entries);
 
-        Pkg {
-            file,
-            header,
-            entries,
-            files,
-        }
+        Pkg { header, files }
     }
 
     fn read_header(file: &mut BufReader<File>) -> Header {
@@ -80,7 +73,7 @@ impl Pkg {
         const DATA_SIZE: usize = 4;
 
         let mut path_len = [0u8; PATH_LEN];
-        let mut entries = Vec::<Entry>::new();
+        let mut entries = Vec::<Entry>::with_capacity(entry_count as usize);
 
         for _ in 0..entry_count {
             file.read_exact(&mut path_len).unwrap();
