@@ -111,14 +111,17 @@ impl Tex {
     }
 
     pub fn parse_to_image(&self) -> Option<(Vec<u8>, String)> {
-        let payload = match self.extension.as_str() {
+        Some(match self.extension.as_str() {
             "r8" => Self::raw_to_png(
-                Self::r8_to_raw(&self.payload),
+                self.payload.iter().flat_map(|&b| [b, b, b, 255]).collect(),
                 self.dimension[0],
                 self.dimension[1],
             )?,
             "rg88" => Self::raw_to_png(
-                Self::rg88_to_raw(&self.payload),
+                self.payload
+                    .windows(2)
+                    .flat_map(|b| [b[0], b[0], b[0], b[1]])
+                    .collect(),
                 self.dimension[0],
                 self.dimension[1],
             )?,
@@ -149,20 +152,43 @@ impl Tex {
             "jpg" => (self.payload.clone(), "jpg".to_owned()),
             "png" => (self.payload.clone(), "png".to_owned()),
             _ => (self.payload.clone(), "tex".to_owned()),
-        };
-
-        Some(payload)
+        })
     }
 
-    fn r8_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
-        bytes.iter().flat_map(|&b| [b, b, b, 255]).collect()
-    }
-
-    fn rg88_to_raw(bytes: &Vec<u8>) -> Vec<u8> {
-        bytes
-            .windows(2)
-            .flat_map(|b| [b[0], b[0], b[0], b[1]])
-            .collect()
+    pub fn parse_to_rgba(&self) -> Option<Vec<u8>> {
+        Some(match self.extension.as_str() {
+            "png" => image::load_from_memory_with_format(&self.payload, image::ImageFormat::Png)
+                .ok()?
+                .into_rgba8()
+                .as_raw()
+                .to_owned(),
+            "jpg" => image::load_from_memory_with_format(&self.payload, image::ImageFormat::Jpeg)
+                .ok()?
+                .into_rgba8()
+                .as_raw()
+                .to_owned(),
+            "rg88" => self.payload.clone(),
+            "r8" => self.payload.clone(),
+            "dxt1" => bcndecode::decode(
+                &self.payload,
+                self.dimension[0] as usize,
+                self.dimension[1] as usize,
+                bcndecode::BcnEncoding::Bc1,
+                bcndecode::BcnDecoderFormat::RGBA,
+            )
+            .ok()?,
+            "dxt5" => bcndecode::decode(
+                &self.payload,
+                self.dimension[0] as usize,
+                self.dimension[1] as usize,
+                bcndecode::BcnEncoding::Bc5,
+                bcndecode::BcnDecoderFormat::RGBA,
+            )
+            .ok()?,
+            _ => {
+                return None;
+            }
+        })
     }
 
     fn match_signature(bytes: &Vec<u8>) -> String {
