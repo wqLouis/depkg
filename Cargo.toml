@@ -7,6 +7,5 @@ license = "GPL-3.0"
 
 [dependencies]
 bcndecode = "0.2.0"
-clap = { version = "4.5.54", features = ["derive"] }
 image = "0.25.9"
 lz4 = "1.28.1"

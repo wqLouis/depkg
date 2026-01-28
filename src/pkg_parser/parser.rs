@@ -14,12 +14,12 @@ pub struct Pkg {
     pub files: HashMap<String, Vec<u8>>,
 }
 
-pub struct Header {
+pub(self) struct Header {
     version: String,
     file_count: u32,
 }
 
-pub struct Entry {
+pub(self) struct Entry {
     pub path: String,
     pub offset: u32,
     pub size: u32,
