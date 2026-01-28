@@ -8,7 +8,6 @@ use std::{
 use crate::pkg_parser::tex_parser;
 
 pub struct Pkg {
-    file: BufReader<File>,
     pub header: Header,
     pub files: HashMap<String, Vec<u8>>,
 }
@@ -31,11 +30,7 @@ impl Pkg {
         let entries = Self::read_entries(&mut file, header.file_count);
         let files = Self::read_files(&mut file, &entries);
 
-        Pkg {
-            file,
-            header,
-            files,
-        }
+        Pkg { header, files }
     }
 
     fn read_header(file: &mut BufReader<File>) -> Header {
