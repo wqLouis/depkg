@@ -155,8 +155,8 @@ impl Tex {
         })
     }
 
-    pub fn parse_to_rgba(&self) -> Option<Vec<u8>> {
-        Some(match self.extension.as_str() {
+    pub fn parse_to_rgba(&mut self) -> Option<()> {
+        let parsed = match self.extension.as_str() {
             "png" => image::load_from_memory_with_format(&self.payload, image::ImageFormat::Png)
                 .ok()?
                 .into_rgba8()
@@ -188,7 +188,11 @@ impl Tex {
             _ => {
                 return None;
             }
-        })
+        };
+
+        self.payload = parsed;
+
+        Some(())
     }
 
     fn match_signature(bytes: &Vec<u8>) -> String {
