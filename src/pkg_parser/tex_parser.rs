@@ -14,7 +14,7 @@ pub struct Tex {
     pub lz4: bool,
     pub decompressed_size: u32,
     pub extension: String,
-    payload: Vec<u8>,
+    pub payload: Vec<u8>,
 }
 
 impl Tex {
