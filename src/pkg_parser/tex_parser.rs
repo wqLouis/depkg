@@ -2,6 +2,7 @@ use std::io::{BufReader, Cursor, Read};
 
 use image::{ImageBuffer, Rgba};
 
+#[derive(Debug, Clone)]
 pub struct Tex {
     pub texv: String,
     pub texi: String,

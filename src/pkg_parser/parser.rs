@@ -7,11 +7,13 @@ use std::{
 
 use crate::pkg_parser::tex_parser;
 
+#[derive(Debug, Clone)]
 pub struct Pkg {
     pub header: Header,
     pub files: HashMap<String, Vec<u8>>,
 }
 
+#[derive(Debug, Clone)]
 pub(self) struct Header {
     version: String,
     file_count: u32,
