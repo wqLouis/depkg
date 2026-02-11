@@ -120,7 +120,9 @@ impl Pkg {
             let payload = Arc::new(payload.to_owned());
             let mut path = target.join(path.clone().to_owned());
 
-            create_dir_all(path.parent().unwrap()).unwrap();
+            if !dry_run {
+                create_dir_all(path.parent().unwrap()).unwrap();
+            }
 
             let handle = std::thread::spawn(move || {
                 if path.extension().unwrap_or_default() == "tex" && parse_tex {
