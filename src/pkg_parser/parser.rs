@@ -2,7 +2,8 @@ use std::{
     collections::HashMap,
     fs::{self, File, create_dir_all},
     io::{BufReader, Read, Seek, SeekFrom},
-    path::Path,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 use crate::pkg_parser::tex_parser;
@@ -112,62 +113,40 @@ impl Pkg {
     }
 
     pub fn save_pkg(&mut self, target: &Path, dry_run: bool, parse_tex: bool, verbose: bool) {
-        for (path, bytes) in self.files.iter() {
-            let mut path = target.join(path);
-            if !dry_run {
-                create_dir_all(path.parent().unwrap()).unwrap();
-            }
-            if path.extension().unwrap_or_default() == "tex" {
-                if !parse_tex & !dry_run {
-                    fs::write(path, bytes).unwrap();
-                    continue;
-                }
-                let tex = tex_parser::Tex::new(bytes);
-                let tex = match tex {
-                    Some(val) => val,
-                    None => {
-                        println!(
-                            "failed to parse path: {} \n",
-                            path.to_str().unwrap_or_default()
-                        );
-                        continue;
+        for (path, payload) in self.files.iter() {
+            let payload = Arc::new(payload.to_owned());
+            let mut path = target.join(path.clone().to_owned());
+
+            create_dir_all(path.parent().unwrap()).unwrap();
+
+            std::thread::spawn(move || {
+                if path.extension().unwrap_or_default() == "tex" && parse_tex {
+                    let tex = tex_parser::Tex::new(&payload).unwrap();
+
+                    if verbose {
+                        println!("Texture:");
+                        println!("Texv: {}", tex.texv);
+                        println!("Texi: {}", tex.texi);
+                        println!("Texb: {}", tex.texb);
+                        println!("Image count: {}", tex.image_count);
+                        println!("Mipmap count: {}", tex.mipmap_count);
+                        println!("Lz4 compressed: {}", tex.lz4);
+                        println!("Texture size: {}", tex.size);
+                        println!("w: {} h: {}", tex.dimension[0], tex.dimension[1]);
+                        println!();
                     }
-                };
 
-                if verbose {
-                    println!("Texture:");
-                    println!("Texv: {}", tex.texv);
-                    println!("Texi: {}", tex.texi);
-                    println!("Texb: {}", tex.texb);
-                    println!("Image count: {}", tex.image_count);
-                    println!("Mipmap count: {}", tex.mipmap_count);
-                    println!("Lz4 compressed: {}", tex.lz4);
-                    println!("Texture size: {}", tex.size);
-                    println!("w: {} h: {}", tex.dimension[0], tex.dimension[1]);
-                    println!();
-                }
+                    let tex = tex.parse_to_image().unwrap();
 
-                let parsed = tex.parse_to_image();
-                let parsed = match parsed {
-                    None => {
-                        println!(
-                            "failed to parse image: {}\n",
-                            path.to_str().unwrap_or_default()
-                        );
-                        continue;
+                    path.set_extension(&tex.1);
+
+                    if !dry_run {
+                        fs::write(path, tex.0).unwrap();
                     }
-                    Some(val) => val,
-                };
-
-                path.set_extension(&parsed.1);
-                if parse_tex & !dry_run {
-                    fs::write(path, parsed.0).unwrap();
+                } else if !dry_run {
+                    fs::write(path, payload.to_vec()).unwrap();
                 }
-            } else {
-                if !dry_run {
-                    fs::write(path, bytes).unwrap();
-                }
-            }
+            });
         }
     }
 }
