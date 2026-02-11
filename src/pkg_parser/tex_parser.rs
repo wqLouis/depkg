@@ -182,7 +182,7 @@ impl Tex {
                 &self.payload,
                 self.dimension[0] as usize,
                 self.dimension[1] as usize,
-                bcndecode::BcnEncoding::Bc5,
+                bcndecode::BcnEncoding::Bc3,
                 bcndecode::BcnDecoderFormat::RGBA,
             )
             .ok()?,
