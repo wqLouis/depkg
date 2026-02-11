@@ -4,6 +4,7 @@ use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
+    thread::JoinHandle,
 };
 
 use crate::pkg_parser::tex_parser;
@@ -113,13 +114,15 @@ impl Pkg {
     }
 
     pub fn save_pkg(&mut self, target: &Path, dry_run: bool, parse_tex: bool, verbose: bool) {
+        let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(self.files.len());
+
         for (path, payload) in self.files.iter() {
             let payload = Arc::new(payload.to_owned());
             let mut path = target.join(path.clone().to_owned());
 
             create_dir_all(path.parent().unwrap()).unwrap();
 
-            std::thread::spawn(move || {
+            let handle = std::thread::spawn(move || {
                 if path.extension().unwrap_or_default() == "tex" && parse_tex {
                     let tex = tex_parser::Tex::new(&payload).unwrap();
 
@@ -147,6 +150,11 @@ impl Pkg {
                     fs::write(path, payload.to_vec()).unwrap();
                 }
             });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
         }
     }
 }
