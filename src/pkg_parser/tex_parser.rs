@@ -72,8 +72,8 @@ impl Tex {
         buf.read_exact(&mut payload).ok()?;
         extension = match u32::from_le_bytes(format) {
             0 => "raw".to_owned(),
-            4 | 7 => "dxt1".to_owned(),
-            6 => "dxt5".to_owned(),
+            7 => "dxt1".to_owned(),
+            4 | 6 => "dxt5".to_owned(),
             8 => "rg88".to_owned(),
             9 => "r8".to_owned(),
             _ => "tex".to_owned(),
@@ -143,7 +143,7 @@ impl Tex {
                     &self.payload,
                     self.dimension[0] as usize,
                     self.dimension[1] as usize,
-                    bcndecode::BcnEncoding::Bc5,
+                    bcndecode::BcnEncoding::Bc3,
                     bcndecode::BcnDecoderFormat::RGBA,
                 )
                 .unwrap(),
