@@ -1,6 +1,6 @@
 [package]
-name = "depkg"
-version = "1.1.1"
+name = "depkg-cli"
+version = "1.1.7"
 edition = "2024"
 description = "A tool to decompile wallpaper engine pkg and tex files"
 license = "GPL-3.0"
