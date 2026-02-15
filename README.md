@@ -23,6 +23,12 @@ cd wallpaper-engine-pkg-parser
 cargo install --path .
 ```
 
+Or install from crates.io:
+
+```bash
+cargo install depkg-cli
+```
+
 ## Acknowledgments & Inspiration
 
 This project was inspired by the incredible work done by the open-source community. Special thanks to:
