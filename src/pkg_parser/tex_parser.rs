@@ -86,9 +86,9 @@ impl Tex {
         };
 
         if is_lz4 {
-            payload = lz4::block::decompress(
+            payload = lz4_flex::block::decompress(
                 &mut payload,
-                Some(u32::from_le_bytes(decompressed_size) as i32),
+                u32::from_le_bytes(decompressed_size) as usize,
             )
             .ok()?;
         }

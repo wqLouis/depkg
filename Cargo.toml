@@ -1,6 +1,6 @@
 [package]
 name = "depkg"
-version = "1.1.7"
+version = "1.1.8"
 edition = "2024"
 description = "A tool to decompile wallpaper engine pkg and tex files"
 license = "GPL-3.0"
@@ -8,4 +8,4 @@ license = "GPL-3.0"
 [dependencies]
 bcndecode = "0.2.0"
 image = "0.25.9"
-lz4 = "1.28.1"
+lz4_flex = "0.12.0"
