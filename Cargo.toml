@@ -12,6 +12,8 @@ image = "0.25.9"
 lz4_flex = "0.12.0"
 
 [profile.release]
+debug = false
+strip = true
 lto = "thin"
-jemalloc = true
-codegen-unit = 1
+panic = "abort"
+codegen-units = 1

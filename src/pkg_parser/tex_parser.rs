@@ -155,56 +155,25 @@ impl Tex {
         })
     }
 
-    pub fn parse_to_rgba(&self) -> Option<Vec<u8>> {
-        Some(match self.extension.as_str() {
-            "png" => image::load_from_memory_with_format(&self.payload, image::ImageFormat::Png)
-                .ok()?
-                .into_rgba8()
-                .as_raw()
-                .to_owned(),
-            "jpg" => image::load_from_memory_with_format(&self.payload, image::ImageFormat::Jpeg)
-                .ok()?
-                .into_rgba8()
-                .as_raw()
-                .to_owned(),
-            "rg88" => self.payload.clone(),
-            "r8" => self.payload.clone(),
-            "dxt1" => bcndecode::decode(
-                &self.payload,
-                self.dimension[0] as usize,
-                self.dimension[1] as usize,
-                bcndecode::BcnEncoding::Bc1,
-                bcndecode::BcnDecoderFormat::RGBA,
-            )
-            .ok()?,
-            "dxt5" => bcndecode::decode(
-                &self.payload,
-                self.dimension[0] as usize,
-                self.dimension[1] as usize,
-                bcndecode::BcnEncoding::Bc3,
-                bcndecode::BcnDecoderFormat::RGBA,
-            )
-            .ok()?,
-            _ => {
-                return None;
-            }
-        })
-    }
-
     fn match_signature(bytes: &Vec<u8>) -> String {
         const PNG_SIG: ([u8; 8], &str) = ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "png");
         const JPG_SIG: ([u8; 3], &str) = ([0xff, 0xd8, 0xff], "jpg");
+        const MP4_SIG: ([u8; 4], &str) = ([0x66, 0x74, 0x79, 0x70], "mp4");
+        const PADDED_BITS: usize = 16;
 
-        let mut padded_arr = [0u8; 8];
-        let payload_len = std::cmp::min(8, bytes.len());
+        let mut padded_arr = [0u8; PADDED_BITS];
+        let payload_len = std::cmp::min(PADDED_BITS, bytes.len());
 
         padded_arr[..payload_len].copy_from_slice(&bytes[..payload_len]);
 
-        if padded_arr == PNG_SIG.0 {
+        if padded_arr[..8] == PNG_SIG.0 {
             return PNG_SIG.1.to_owned();
         }
         if padded_arr[..3] == JPG_SIG.0 {
             return JPG_SIG.1.to_owned();
+        }
+        if padded_arr[4..8] == MP4_SIG.0 {
+            return MP4_SIG.1.to_owned();
         }
 
         "tex".to_owned()
