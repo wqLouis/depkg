@@ -151,6 +151,7 @@ impl Tex {
             )?,
             "jpg" => (self.payload.clone(), "jpg".to_owned()),
             "png" => (self.payload.clone(), "png".to_owned()),
+            "mp4" => (self.payload.clone(), "mp4".to_owned()),
             _ => (self.payload.clone(), "tex".to_owned()),
         })
     }
