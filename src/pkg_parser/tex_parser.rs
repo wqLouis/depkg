@@ -152,6 +152,7 @@ impl Tex {
             )?,
             "jpg" => (self.payload.clone(), "jpg".to_owned()),
             "png" => (self.payload.clone(), "png".to_owned()),
+            "mp4" => (self.payload.clone(), "mp4".to_owned()),
             _ => (self.payload.clone(), "tex".to_owned()),
         })
     }
@@ -168,6 +169,7 @@ impl Tex {
                 .into_rgba8()
                 .as_raw()
                 .to_owned(),
+            "mp4" => self.payload.clone(),
             "rg88" => self.payload.clone(),
             "r8" => self.payload.clone(),
             "dxt1" => bcndecode::decode(
